@@ -1,12 +1,13 @@
 # Get and install Easy noVNC.
-FROM golang:bullseye AS easy-novnc-build
+FROM golang:bookworm AS easy-novnc-build
 WORKDIR /src
 RUN go mod init build && \
     go get github.com/geek1011/easy-novnc@v1.1.0 && \
     go build -o /bin/easy-novnc github.com/geek1011/easy-novnc
 
 # Get TigerVNC and Supervisor for isolating the container.
-FROM debian:bullseye
+FROM ubuntu:latest
+ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends openbox tigervnc-standalone-server supervisor gosu && \
     rm -rf /var/lib/apt/lists && \
@@ -24,7 +25,7 @@ RUN apt update && apt install -y --no-install-recommends --allow-unauthenticated
         libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base \
         gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools \
         gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio \
-        jq curl git firefox-esr \
+        jq curl git libfuse-dev libfuse2 fuse libssl-dev libcurl4-openssl-dev m4 \
     && apt autoclean -y \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
@@ -42,13 +43,10 @@ RUN chmod +x /orcaslicer/get_release_info.sh
 RUN latestOrcaslicer=$(/orcaslicer/get_release_info.sh url) \
 && echo ${latestOrcaslicer} \
 && orcaslicerReleaseName=$(/orcaslicer/get_release_info.sh name) \
-&& curl -sSL ${latestOrcaslicer} > ${orcaslicerReleaseName} \
-&& rm -f /orcaslicer/releaseInfo.json \
-&& mkdir -p /orcaslicer/orcaslicer-dist \
-&& unzip ${orcaslicerReleaseName} -d /orcaslicer/orcaslicer-dist \
-&& chmod 775 /orcaslicer/orcaslicer-dist/OrcaSlicer_ubu64.AppImage \
-&& /orcaslicer/orcaslicer-dist/OrcaSlicer_ubu64.AppImage --appimage-extract \
-&& rm -f /orcaslicer/${orcaslicerReleaseName}
+&& curl -sSL ${latestOrcaslicer} > /orcaslicer/orcaslicer-dist/orcaslicer.AppImage \
+&& chmod -R 775 /orcaslicer/orcaslicer-dist/orcaslicer.AppImage \
+&& dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc of=orcaslicer-dist/orcaslicer.AppImage \
+&& bash -c "/orcaslicer/orcaslicer-dist/orcaslicer.AppImage --appimage-extract"
 
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt-get autoclean 
