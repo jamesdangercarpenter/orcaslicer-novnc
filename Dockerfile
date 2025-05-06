@@ -2,33 +2,33 @@
 FROM golang:bookworm AS easy-novnc-build
 WORKDIR /src
 RUN go mod init build && \
-    go get github.com/geek1011/easy-novnc@v1.1.0 && \
-    go build -o /bin/easy-novnc github.com/geek1011/easy-novnc
+  go get github.com/geek1011/easy-novnc@v1.1.0 && \
+  go build -o /bin/easy-novnc github.com/geek1011/easy-novnc
 
 # Get TigerVNC and Supervisor for isolating the container.
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends openbox tigervnc-standalone-server supervisor gosu && \
-    rm -rf /var/lib/apt/lists && \
-    mkdir -p /usr/share/desktop-directories
+  apt-get install -y --no-install-recommends openbox tigervnc-standalone-server supervisor gosu && \
+  rm -rf /var/lib/apt/lists && \
+  mkdir -p /usr/share/desktop-directories
 
 # # Get all of the remaining dependencies for the OS and VNC.
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends lxterminal nano wget openssh-client rsync ca-certificates xdg-utils htop tar xzip gzip bzip2 zip unzip && \
-    rm -rf /var/lib/apt/lists
+  apt-get install -y --no-install-recommends lxterminal nano wget openssh-client rsync ca-certificates xdg-utils htop tar xzip gzip bzip2 zip unzip && \
+  rm -rf /var/lib/apt/lists
 
 RUN apt update && apt install -y --no-install-recommends --allow-unauthenticated \
-        lxde gtk2-engines-murrine gnome-themes-standard gtk2-engines-pixbuf gtk2-engines-murrine arc-theme libwebkit2gtk-4.0-37 \
-        freeglut3 libgtk2.0-dev libwxgtk3.0-gtk3-dev libwx-perl libxmu-dev libgl1-mesa-glx libgl1-mesa-dri \
-        xdg-utils locales pcmanfm libgtk-3-dev libglew-dev libudev-dev libdbus-1-dev zlib1g-dev locales locales-all \
-        libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base \
-        gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools \
-        gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio \
-        jq curl git libfuse-dev libfuse2 fuse libssl-dev libcurl4-openssl-dev m4 \
-    && apt autoclean -y \
-    && apt autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
+  lxde gtk2-engines-murrine gtk2-engines-pixbuf gtk2-engines-murrine arc-theme libwebkit2gtk-4.1-dev \
+  freeglut3-dev libgtk2.0-dev libwxgtk3.2-dev libwx-perl libxmu-dev libgl1-mesa-dri \
+  xdg-utils locales pcmanfm libgtk-3-dev libglew-dev libudev-dev libdbus-1-dev zlib1g-dev locales locales-all \
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base \
+  gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools \
+  gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio \
+  jq curl git libfuse-dev libfuse2 fuse libssl-dev libcurl4-openssl-dev m4 \
+  && apt autoclean -y \
+  && apt autoremove -y \
+  && rm -rf /var/lib/apt/lists/*
 
 # Install OrcaSlicer and its dependencies.
 # Many of the commands below were derived and pulled from previous work by dmagyar on GitHub.
@@ -41,12 +41,12 @@ RUN chmod +x /orcaslicer/get_release_info.sh
 
 # Retrieve and unzip all of the OrcaSlicer bits using variable.
 RUN latestOrcaslicer=$(/orcaslicer/get_release_info.sh url) \
-&& echo ${latestOrcaslicer} \
-&& orcaslicerReleaseName=$(/orcaslicer/get_release_info.sh name) \
-&& curl -sSL ${latestOrcaslicer} > /orcaslicer/orcaslicer-dist/orcaslicer.AppImage \
-&& chmod -R 775 /orcaslicer/orcaslicer-dist/orcaslicer.AppImage \
-&& dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc of=orcaslicer-dist/orcaslicer.AppImage \
-&& bash -c "/orcaslicer/orcaslicer-dist/orcaslicer.AppImage --appimage-extract"
+  && echo ${latestOrcaslicer} \
+  && orcaslicerReleaseName=$(/orcaslicer/get_release_info.sh name) \
+  && curl -sSL ${latestOrcaslicer} > /orcaslicer/orcaslicer-dist/orcaslicer.AppImage \
+  && chmod -R 775 /orcaslicer/orcaslicer-dist/orcaslicer.AppImage \
+  && dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc of=orcaslicer-dist/orcaslicer.AppImage \
+  && bash -c "/orcaslicer/orcaslicer-dist/orcaslicer.AppImage --appimage-extract"
 
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt-get autoclean 
