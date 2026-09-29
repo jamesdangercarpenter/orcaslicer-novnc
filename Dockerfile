@@ -39,14 +39,29 @@ ADD get_release_info.sh /orcaslicer
 RUN mkdir -p /orcaslicer/orcaslicer-dist
 RUN chmod +x /orcaslicer/get_release_info.sh
 
+# OrcaSlicer release tag to install, e.g. v2.4.2 (default: latest).
+ARG ORCASLICER_VERSION=latest
+# Set automatically by BuildKit from --platform (or the build host).
+ARG TARGETARCH
+
 # Retrieve and unzip all of the OrcaSlicer bits using variable.
-RUN latestOrcaslicer=$(/orcaslicer/get_release_info.sh url) \
-  && echo ${latestOrcaslicer} \
-  && orcaslicerReleaseName=$(/orcaslicer/get_release_info.sh name) \
-  && curl -sSL ${latestOrcaslicer} > /orcaslicer/orcaslicer-dist/orcaslicer.AppImage \
+RUN set -e \
+  && export ORCASLICER_VERSION ORCASLICER_ARCH="${TARGETARCH:-$(uname -m)}" \
+  && orcaslicerUrl="$(/orcaslicer/get_release_info.sh url)" \
+  && echo "Downloading ${orcaslicerUrl} for ${ORCASLICER_ARCH}" \
+  && curl -fsSL "${orcaslicerUrl}" -o /orcaslicer/orcaslicer-dist/orcaslicer.AppImage \
   && chmod -R 775 /orcaslicer/orcaslicer-dist/orcaslicer.AppImage \
   && dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc of=orcaslicer-dist/orcaslicer.AppImage \
-  && bash -c "/orcaslicer/orcaslicer-dist/orcaslicer.AppImage --appimage-extract"
+  && bash -c "/orcaslicer/orcaslicer-dist/orcaslicer.AppImage --appimage-extract" \
+  # Fail the build if the extracted binary is for the wrong CPU (ELF e_machine).
+  && machine="$(od -An -tx1 -j18 -N2 squashfs-root/bin/orca-slicer | tr -d ' \n')" \
+  && case "${ORCASLICER_ARCH}" in \
+       amd64|x86_64) expected=3e00 ;; \
+       arm64|aarch64) expected=b700 ;; \
+     esac \
+  && if [ "${machine}" != "${expected}" ]; then \
+       echo "orca-slicer ELF machine is ${machine}, expected ${expected} for ${ORCASLICER_ARCH}" >&2; exit 1; \
+     fi
 
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt-get autoclean 
