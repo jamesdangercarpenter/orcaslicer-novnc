@@ -2,6 +2,11 @@ name: Publish to Docker
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "OrcaSlicer release tag (e.g. v2.4.2); blank for latest"
+        required: false
+        default: ""
 
 jobs:
   push_to_registry:
@@ -17,10 +22,14 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Get Orcaslicer version
         id: version
-        run: echo "::set-output name=version::$(./get_release_info.sh version)"
+        env:
+          ORCASLICER_VERSION: ${{ inputs.version || 'latest' }}
+        run: echo "version=$(./get_release_info.sh version)" >> "$GITHUB_OUTPUT"
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64
+          build-args: ORCASLICER_VERSION=${{ steps.version.outputs.version }}
           push: true
           tags: enkitech/orcaslicer-novnc:latest, enkitech/orcaslicer-novnc:${{ steps.version.outputs.version }}
