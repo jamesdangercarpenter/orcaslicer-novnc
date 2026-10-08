@@ -30,6 +30,20 @@ RUN apt update && apt install -y --no-install-recommends --allow-unauthenticated
   && apt autoremove -y \
   && rm -rf /var/lib/apt/lists/*
 
+# GPU-accelerated OpenGL. VirtualGL renders OpenGL on a host GPU (passed in as
+# /dev/dri) and copies the frames into the VNC display; Mesa's radeonsi driver
+# covers AMD Radeon GPUs including the 780M iGPU. mesa-utils provides glxinfo
+# for checking which renderer is in use.
+ARG VIRTUALGL_VERSION=3.1.5
+RUN set -e \
+  && apt-get update -y \
+  && apt-get install -y --no-install-recommends \
+    libegl1 libegl-mesa0 libgl1 libglx-mesa0 libgl1-mesa-dri libglu1-mesa mesa-utils \
+  && curl -fsSL -o /tmp/virtualgl.deb \
+    "https://github.com/VirtualGL/virtualgl/releases/download/${VIRTUALGL_VERSION}/virtualgl_${VIRTUALGL_VERSION}_$(dpkg --print-architecture).deb" \
+  && apt-get install -y --no-install-recommends /tmp/virtualgl.deb \
+  && rm -rf /tmp/virtualgl.deb /var/lib/apt/lists/*
+
 # Install OrcaSlicer and its dependencies.
 # Many of the commands below were derived and pulled from previous work by dmagyar on GitHub.
 # Here's their Dockerfile for reference https://github.com/dmagyar/prusaslicer-vnc-docker/blob/main/Dockerfile.amd64
@@ -87,10 +101,11 @@ COPY --from=easy-novnc-build /bin/easy-novnc /usr/local/bin/
 COPY menu.xml /etc/xdg/openbox/
 
 COPY supervisord.conf /etc/
+COPY --chmod=755 entrypoint.sh start-orcaslicer.sh /usr/local/bin/
 EXPOSE 8080
 
 VOLUME /configs/
 VOLUME /prints/
 
 # It's time! Let's get to work! We use /configs/ as a bindable volume for OrcaSlicers configurations.  We use /prints/ to provide a location for STLs and GCODE files.
-CMD ["bash", "-c", "chown -R orcaslicer:orcaslicer /configs/ /home/orcaslicer/ /prints/ /dev/stdout && exec gosu orcaslicer supervisord"]
+CMD ["/usr/local/bin/entrypoint.sh"]
